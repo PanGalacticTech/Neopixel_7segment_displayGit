@@ -33,7 +33,7 @@ B = 3, 4, 5
 
 
 
-each segment object can be
+each segment object has methods
 
     .on
     .off
