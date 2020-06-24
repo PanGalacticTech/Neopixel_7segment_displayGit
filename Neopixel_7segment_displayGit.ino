@@ -10,10 +10,10 @@ FASTLED_USING_NAMESPACE
 #endif
 
 #define DATA_PIN    22                    // Data pin connection to LED string
-//#define CLK_PIN   4
-#define LED_TYPE    WS2812B                // 
+//#define CLK_PIN   4                      // Not required for 3 pin LED strings
+#define LED_TYPE    WS2812B                // This must be set to match the specific LED driver used
 
-//#define LED_TYPE WS2811_400
+//#define LED_TYPE WS2811_400               //
 
 #define COLOR_ORDER GRB
 
@@ -30,14 +30,6 @@ FASTLED_USING_NAMESPACE
 
 //CRGBSet A(digitLEDs, 21);                        // alternative methods, depreciated for now
 
-//CRGBArray<NUM_LEDS> digit0;                        // Set up an array containing the number of LEDs in a single digit
-//CRGBArray<NUM_LEDS> digit1;                        // Set up an array containing the number of LEDs in a single digit
-//CRGBArray<NUM_LEDS> digit2;
-//CRGBArray<NUM_LEDS> digit3;                        // Set up an array containing the number of LEDs in a single digit
-//CRGBArray<NUM_LEDS> digit4;                        // Set up an array containing the number of LEDs in a single digit
-//CRGBArray<NUM_LEDS> digit5;                        // Set up an array containing the number of LEDs in a single digit
-
-
 // I could not work out how  to make this work so we are going for the big dumb hammer approach
 //CRGBArray<21> digit0, digit1, digit2, digit3, digit4, digit5;
 
@@ -46,7 +38,14 @@ CRGBArray<NUM_LEDS> ledString;
 
 
 
-uint8_t maxBrightness = 20;                      // Define the max brightness of all LEDs. 0 - 255. 20 reccomended for testing: MUST use seperate 5v supply for full brightness operation! Do not use USB power!
+uint8_t maxBrightness = 20;                      // Define the max brightness of all LEDs. 0 - 255. 20-50 reccomended for testing: MUST use seperate 5v supply for full brightness operation! Do not use USB power!
+
+//   N.B. on power consumption:
+// At full brightness each LED can draw 60 mA
+
+// 60 mA * 126 = 7560 mA = 7.6 A !
+// including the 14 extra = 8.4 A
+// These LEDs can draw a decent amount of current and require a decent PSU. 10A @ 5v Recommended
 
 
 
@@ -87,11 +86,20 @@ void setup() {
 int8_t countdown = 0;            // Countdown timer placeholder for testing.
 
 
-int8_t seconds = 99;    // initialised at 99 for testing
-int8_t minuites;
-int8_t hours;
+int8_t seconds = -60;    // initialised at -60 for testing
+int8_t minutes = -2;
+int8_t hours = -1;           // These just set the starting time on boot up, could be set to -23:59:59 in final implementation
+// for now set lower for easier testing transition state
 
 
+int8_t secondsLSF;     //seconds least significant figure
+int8_t secondsMSF;      // seconds most singnificant figure
+
+
+
+unsigned long countdownTiming;
+unsigned long lastCountdownEvent = 0;
+unsigned long countdownDelay = 1000;  // Counts down 1 every second
 
 
 int8_t activeDigit = 0;  // this value used to control the digit that is currently being written to
@@ -104,9 +112,18 @@ int8_t activeDigit = 0;  // this value used to control the digit that is current
 void loop() {
 
 
-  
+  // clock timing functions to take over when live data not available:
 
-  displayedDigits[0]= alldigits[countdown];                                           // current display data handed a digit from alldigits array, number set by the countdown placeholder
+  countdownClock();
+
+
+  // Function here to split up clock into individual digits to feed to display algorithms
+  clocktodigits();
+
+
+
+
+  displayedDigits[0] = alldigits[secondsLSF];                                          // current display data handed a digit from alldigits array, number set by the countdown placeholder
   // This line can be put into a for loop, and the pre seperated timing values passed to displayed digits array, then to the setDigit function
 
 
@@ -114,108 +131,88 @@ void loop() {
   setDigit(displayedDigits[0], activeDigit, currentColour.r, currentColour.g, currentColour.b);                                      // Turns LED segments on and off. Brightness is already set in setup loop,.
 
   //     Colour for "ON" LEDs passed as seperate RGB values an argument to the function
-  //      currentColour variable is passed as seperate .r .b .g values, so these can be replaced directly with RGB values 0-255 
+  //      currentColour variable is passed as seperate .r .b .g values, so these can be replaced directly with RGB values 0-255
 
 
   FastLED.show();                          // print the data to all the LEDs
-  Serial.println(countdown);
-  delay(1000);                          // delay for testing purposes only
+
+  
+  //Serial.println(countdown);             // print for testing only
+ // delay(1000);                          // delay for testing purposes only
 
 
 
-  countdown--;                                         // These control our test countdown clock
 
-  if (countdown < 0) {                               // Reset the timer when it reaches zero
-    // Once other digits are added this figure will count down
-    countdown = 9;                                     // hours, minuites, seconds, then increment past zero for post launch timing
-
-    // Just a way of testing the colour changing function through each cycle
-    currentColour =  colourArray[colourSelect];            // pass currentColour the array containing data structure containing
-    // colour data. Can be used in response to other events
-    // in response to other events. e.g. when value turns negative
-    // to positive.
-
-    colourSelect++;                                     // increment current colour - cycle through colours
-    if (colourSelect > 2) {                              // reset when reach the end of array
-      colourSelect = 0;
-    }
-
-  }
 }
 
 
 
 
+void countdownClock() {                                           // Free Running Countdown clock to take over timing if data is lost (and testing)
 
+  if (millis() - lastCountdownEvent >= countdownDelay) {               // if (the current elapsed time in milliseconds) - (the last time recorded) >= 1second
 
+    lastCountdownEvent = millis();                                      // Record the new elapsed time
 
+    seconds++;                                                         // add a second
 
-
-// this function needs to be a method for a "digit" object but I couldn't work out how to do that. 
-// This method is slightly more inelegent but it should work (UNTESTED with more than 1 digit)
-
-
-
-void setDigit (digitSeg current, int8_t digitNumber, uint8_t red, uint8_t green, uint8_t blue ) {           // This function sets the first digit based on the data structure passed to it.
-
-
-  // A new instance of digitSeg has been set up ready to take whatever data is placed into it
-  // After this,  a variable to denote which digit we are setting is passed as an argument.
-  // Also passed to function - rgb colour value, which sets the colour for the entire digit
-
-
-
-  uint8_t  q = (digitNumber) * 21;    // This variable is added onto the array numbers, advancing down the LED array as each successive digit is selected to be written to.
-
-
-
-  if (current.A) {                                                         // if the A segment contains a 1
-    ledString((0 + q), (2 + q)) = CRGB(red, green, blue);                  // print the RGB colour to that segment
-  } else {
-    ledString(0+q, 2+q) = CRGB::Black;                                           // Else turn it off
+    
+  Serial.printf("H: %i M: %i S: %i", hours, minutes, seconds);
+  Serial.println(" ");
   }
 
 
-  if (current.B) {
-    ledString(3+q, 5+q) = CRGB(red, green, blue);
-  } else {
-    ledString(3+q, 5+q) = CRGB::Black;
+  if (hours < 0) {                                                     // if we are in (negative) time, we are counting UP to T=0
+
+    if (seconds >= 0) {                                                    // If seconds reach 0
+      minutes++;                                                              // Increment minuites
+      seconds = -60;                                                            // reset seconds
+      cycleColour();
+    }
+    if (minutes >= 0) {                                                         // if minuites reach 0
+      hours++;                                                                   // increment hours
+      minutes = -60;                                                             // reset minuites
+    }
+  }
+
+  if (hours >= 0) {                                                          // If we are counting (positive) time, we are counting UP from T=0, so reset values need to be to 0
+
+    if (seconds >= 60) {                                                    // If seconds reach 0
+      minutes++;                                                              // Increment minuites
+      seconds = 0;                                                            // reset seconds
+      cycleColour();
+    }
+    if (minutes >= 60) {                                                         // if minuites reach 0
+      hours++;                                                                   // increment hours
+      minutes = 0;                                                             // reset minuites
+    }
+  }
+
+  if (hours >= 24) {
+    hours = -23;
+    minutes = -59;
+    seconds = -59;
+
   }
 
 
-  if (current.C) {
-    ledString(6+q, 8+q) = CRGB(red, green, blue);
-  } else {
-    ledString(6+q, 8+q) = CRGB::Black;
+}
+
+
+
+
+void clocktodigits() {  // Function to split each clock value into seperate digits
+
+
+  secondsLSF = seconds % 10;
+  secondsMSF = seconds / 10;
+
+  if (secondsLSF < 0){
+    secondsLSF = secondsLSF*-1; 
   }
 
 
-  if (current.D) {
-    ledString(9+q, 11+q) = CRGB(red, green, blue);
-  } else {
-    ledString(9+q, 11+q) = CRGB::Black;
-  }
-
-
-  if (current.E) {
-    ledString(12+q, 14+q) = CRGB(red, green, blue);
-  } else {
-    ledString(12+q, 14+q) = CRGB::Black;
-  }
-
-
-  if (current.F) {
-    ledString(15+q, 17+q) = CRGB(red, green, blue);
-  } else {
-    ledString(15+q, 17+q) = CRGB::Black;
-  }
-
-
-  if (current.G) {
-    ledString(18+q, 20+q) = CRGB(red, green, blue);
-  } else {
-    ledString(18+q, 20+q) = CRGB::Black;
-  }
-
+// Serial.printf("MSF: %i  LSF:  %i", secondsMSF, secondsLSF);
+ //Serial.println(" ");
 
 }
