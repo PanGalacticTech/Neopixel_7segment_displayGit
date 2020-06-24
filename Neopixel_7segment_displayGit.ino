@@ -11,20 +11,38 @@ FASTLED_USING_NAMESPACE
 
 #define DATA_PIN    22                    // Data pin connection to LED string
 //#define CLK_PIN   4
-#define LED_TYPE    WS2812B                // =
+#define LED_TYPE    WS2812B                // 
 
 //#define LED_TYPE WS2811_400
 
-#define COLOR_ORDER RGB
-#define NUM_LEDS   21                        // Number of LEDs in a single digit
+#define COLOR_ORDER GRB
+
+//#define NUM_LEDS   21                        // Number of LEDs in a single digit [Depreciated]
+
+#define NUM_LEDS 126                             //Number of LEDS in 6 digits (will add more for the sign and dots later  need at least 7 for +- and 4 for dots            
+
+
+
 
 //uint8_t numberOfLEDs = NUM_LEDS               // alternative methods, depreciated for now
 
-//CRGB leds[NUM_LEDS];                            // alternative methods, depreciated for now     
+//CRGB leds[NUM_LEDS];                            // alternative methods, depreciated for now
 
-//CRGBSet A(digitLEDs, 21);                        // alternative methods, depreciated for now     
+//CRGBSet A(digitLEDs, 21);                        // alternative methods, depreciated for now
 
-CRGBArray<NUM_LEDS> digit;                        // Set up an array containing the number of LEDs in a single digit
+//CRGBArray<NUM_LEDS> digit0;                        // Set up an array containing the number of LEDs in a single digit
+//CRGBArray<NUM_LEDS> digit1;                        // Set up an array containing the number of LEDs in a single digit
+//CRGBArray<NUM_LEDS> digit2;
+//CRGBArray<NUM_LEDS> digit3;                        // Set up an array containing the number of LEDs in a single digit
+//CRGBArray<NUM_LEDS> digit4;                        // Set up an array containing the number of LEDs in a single digit
+//CRGBArray<NUM_LEDS> digit5;                        // Set up an array containing the number of LEDs in a single digit
+
+
+// I could not work out how  to make this work so we are going for the big dumb hammer approach
+//CRGBArray<21> digit0, digit1, digit2, digit3, digit4, digit5;
+
+
+CRGBArray<NUM_LEDS> ledString;
 
 
 
@@ -32,87 +50,9 @@ uint8_t maxBrightness = 20;                      // Define the max brightness of
 
 
 
+int8_t colourSelect = 0;                        // selectes the display colour. 0 = skyrora blue, 1 = offwhite, 2 = yellowOrange. (currently cycles through each)
 
 
-
-
-struct anydigit {                                // Generic data Structure to contain the data for "characters" divided up into 7 segments. Each segment can be on or off.
-
-  uint8_t A;
-  uint8_t B;
-  uint8_t C;
-  uint8_t D;
-  uint8_t E;
-  uint8_t F;
-  uint8_t G;
-
-};
-
-
-uint8_t digitA[3] = {0 , 1, 2};                        // arrays that contain the ID numbers for each LED in each segment of a single digit
-uint8_t digitB[3] = {3 , 4, 5};
-uint8_t digitC[3] = {6 , 7, 8};
-uint8_t digitD[3] = {9 , 10, 11};
-uint8_t digitE[3] = {12 , 13, 14};
-uint8_t digitF[3] = {15 , 16, 17};
-uint8_t digitG[3] = {28 , 19, 20};
-
-anydigit current;                                          //Holds the current data to be printed to the first character of the display [ will be depreciated]
-
-anydigit digitZero;                                           // holds the current value of the first digit
-anydigit digitOne;                                            // holds the current value of the 2nd digit
-anydigit digitTwo;                                            // holds the current value of the 3rd digit
-anydigit digitThree;
-anydigit digitFour;
-anydigit digitFive;
-anydigit plusminus;     
-
-                   // Example Display:
-                   // [plusminus>(T-) [digitFive> 00:00:00  <digit zero]
-
-anydigit zero = {1, 1, 1, 1, 1, 1, 0};                      // these data structures hold the arrays for each unique character. Bits mirror the segments of a typical 7 segment display
-anydigit one = {0, 1, 1, 0, 0, 0, 0};
-anydigit two = {1, 1, 0, 1, 1, 0, 1};
-anydigit three = {1, 1, 1, 1, 0, 0, 1};
-anydigit four = {0, 1, 1, 0, 0, 1, 1};
-anydigit five = {1, 0, 1, 1, 0, 1, 1};
-anydigit six = {1, 0, 1, 1, 1, 1, 1};
-anydigit seven = {1, 1, 1, 0, 0, 0, 0};
-anydigit eight = {1, 1, 1, 1, 1, 1, 1};
-anydigit nine = {1, 1, 1, 0, 0, 1, 1};
-
-
- anydigit alldigits[10] ={zero, one, two, three, four, five, six, seven, eight, nine};    // array to hold data structures above. Array mumber matches the character being recalled. 
-
-// This can be accessed as:
-
-//alldigits[0];   // contains the display data for the character 0
-//alldigits[1];   // Contains the display data for the character 1
-// et al
-
-
-
-
-struct redgreenblue {             // data structure to save named RGB values that could be passed to functions
-
-  byte r;
-  byte g;
-  byte b;
-
-
-};
-
-
-redgreenblue skyroraBlue = { 0 , 0 , 255};    // Data structure for "skyroraBlue" colour as an RGB value
-
-redgreenblue offWhite = { 255, 255, 255};      // data structure for an offwhite colour, all LEDs on max (these figures can be calibrated later to produce a cleaner white if required
-
-redgreenblue blackout = {0 , 0 , 0};          // data structure holding "black" - all LEDS off.
-
-redgreenblue currentColour;                  // data structure to hold the current LED colour
-
-
-bool setBlue = true;    // testing variable can be used to test changing colours
 
 
 
@@ -124,14 +64,14 @@ void setup() {
 
 
   // tell FastLED about the LED strip configuration
-  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(digit, 21).setCorrection(TypicalLEDStrip);            // This sets up the fist digit of the display
+  FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(ledString, NUM_LEDS).setCorrection(TypicalLEDStrip);            // This sets up the fist digit of the display
 
 
   // set master brightness control
   FastLED.setBrightness(maxBrightness);                                                                        // Sets the brightness for the entire string
 
 
-currentColour = skyroraBlue;   // Preset the LED colour, can be changed later in program
+  currentColour = skyroraBlue;   // Preset the LED colour, can be changed later in program
 
   for (int i = 0; i < NUM_LEDS; i++) {                                                                          // loop could be used to reset all LEDs to black on startup. Currently depreciated
     //  leds[i] = CRGB::Black;
@@ -142,8 +82,19 @@ currentColour = skyroraBlue;   // Preset the LED colour, can be changed later in
 
 
 
-int8_t countdown = 0;            // Countdown timer placeholder for testing. 
 
+
+int8_t countdown = 0;            // Countdown timer placeholder for testing.
+
+
+int8_t seconds = 99;    // initialised at 99 for testing
+int8_t minuites;
+int8_t hours;
+
+
+
+
+int8_t activeDigit = 0;  // this value used to control the digit that is currently being written to
 
 
 
@@ -153,90 +104,118 @@ int8_t countdown = 0;            // Countdown timer placeholder for testing.
 void loop() {
 
 
-current = alldigits[countdown];                   // current display data handed a digit from alldigits array, number set by the countdown placeholder
+  
 
-if (setBlue){
-currentColour = skyroraBlue;                              // pass currentColour the data structure containing 
-} else {                                                           // the RGB colour defined earlier. This could be 
- currentColour = offWhite;                                                         // Placed in other places and used to change the colour
-}                                                          // in response to other events. e.g. when value turns negative
-                                                          // to positive.
+  displayedDigits[0]= alldigits[countdown];                                           // current display data handed a digit from alldigits array, number set by the countdown placeholder
+  // This line can be put into a for loop, and the pre seperated timing values passed to displayed digits array, then to the setDigit function
 
-setDigit(currentColour.r, currentColour.g, currentColour.b);                                      // Turns LED segments on and off. Brightness is already set in setup loop,.
-                                                                //     Colour for "ON" LEDs passed as seperate RGB values an argument to the function
+
+
+  setDigit(displayedDigits[0], activeDigit, currentColour.r, currentColour.g, currentColour.b);                                      // Turns LED segments on and off. Brightness is already set in setup loop,.
+
+  //     Colour for "ON" LEDs passed as seperate RGB values an argument to the function
+  //      currentColour variable is passed as seperate .r .b .g values, so these can be replaced directly with RGB values 0-255 
 
 
   FastLED.show();                          // print the data to all the LEDs
+  Serial.println(countdown);
   delay(1000);                          // delay for testing purposes only
 
 
 
-countdown--;                                // These control our test countdown clock
+  countdown--;                                         // These control our test countdown clock
 
-if (countdown < 0){
+  if (countdown < 0) {                               // Reset the timer when it reaches zero
+    // Once other digits are added this figure will count down
+    countdown = 9;                                     // hours, minuites, seconds, then increment past zero for post launch timing
 
-  countdown = 9;
-}
+    // Just a way of testing the colour changing function through each cycle
+    currentColour =  colourArray[colourSelect];            // pass currentColour the array containing data structure containing
+    // colour data. Can be used in response to other events
+    // in response to other events. e.g. when value turns negative
+    // to positive.
 
-}
+    colourSelect++;                                     // increment current colour - cycle through colours
+    if (colourSelect > 2) {                              // reset when reach the end of array
+      colourSelect = 0;
+    }
 
-
-
-// this function needs to be a method for a digit object.
-
-
-void setDigit (uint8_t red, uint8_t green, uint8_t blue ) {           // This function sets the first digit based on the data structure passed to it.
-                                                                       // Also passed rgb colour value, can be used later to change colour of
-                                                                       // the entire digit
-
-if (current.A){   
-     digit(0, 2) = CRGB(red, green, blue);
-   // digit(0, 2) = CRGB::Blue;
-} else {
-    digit(0, 2) = CRGB::Black;
+  }
 }
 
 
-if (current.B){
-    digit(3, 5) = CRGB(red, green, blue);
-} else {
-    digit(3, 5) = CRGB::Black;
-}
 
 
-if (current.C){
-    digit(6, 8) = CRGB(red, green, blue);
-}else {
-    digit(6, 8) = CRGB::Black;
-}
 
 
-if (current.D){
-    digit(9, 11) = CRGB(red, green, blue);
-}else {
-    digit(9, 11) = CRGB::Black;
-}
 
 
-if (current.E){
-    digit(12, 14) = CRGB(red, green, blue);
-}else {
-    digit(12, 14) = CRGB::Black;
-}
+
+// this function needs to be a method for a "digit" object but I couldn't work out how to do that. 
+// This method is slightly more inelegent but it should work (UNTESTED with more than 1 digit)
 
 
-if (current.F){
-    digit(15, 17) = CRGB(red, green, blue);
-}else {
-    digit(15, 17) = CRGB::Black;
-}
+
+void setDigit (digitSeg current, int8_t digitNumber, uint8_t red, uint8_t green, uint8_t blue ) {           // This function sets the first digit based on the data structure passed to it.
 
 
-if (current.G){
-    digit(18, 20) = CRGB(red, green, blue);
-}else {
-    digit(18, 20) = CRGB::Black;
-}
+  // A new instance of digitSeg has been set up ready to take whatever data is placed into it
+  // After this,  a variable to denote which digit we are setting is passed as an argument.
+  // Also passed to function - rgb colour value, which sets the colour for the entire digit
+
+
+
+  uint8_t  q = (digitNumber) * 21;    // This variable is added onto the array numbers, advancing down the LED array as each successive digit is selected to be written to.
+
+
+
+  if (current.A) {                                                         // if the A segment contains a 1
+    ledString((0 + q), (2 + q)) = CRGB(red, green, blue);                  // print the RGB colour to that segment
+  } else {
+    ledString(0+q, 2+q) = CRGB::Black;                                           // Else turn it off
+  }
+
+
+  if (current.B) {
+    ledString(3+q, 5+q) = CRGB(red, green, blue);
+  } else {
+    ledString(3+q, 5+q) = CRGB::Black;
+  }
+
+
+  if (current.C) {
+    ledString(6+q, 8+q) = CRGB(red, green, blue);
+  } else {
+    ledString(6+q, 8+q) = CRGB::Black;
+  }
+
+
+  if (current.D) {
+    ledString(9+q, 11+q) = CRGB(red, green, blue);
+  } else {
+    ledString(9+q, 11+q) = CRGB::Black;
+  }
+
+
+  if (current.E) {
+    ledString(12+q, 14+q) = CRGB(red, green, blue);
+  } else {
+    ledString(12+q, 14+q) = CRGB::Black;
+  }
+
+
+  if (current.F) {
+    ledString(15+q, 17+q) = CRGB(red, green, blue);
+  } else {
+    ledString(15+q, 17+q) = CRGB::Black;
+  }
+
+
+  if (current.G) {
+    ledString(18+q, 20+q) = CRGB(red, green, blue);
+  } else {
+    ledString(18+q, 20+q) = CRGB::Black;
+  }
 
 
 }
