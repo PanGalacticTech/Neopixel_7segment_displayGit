@@ -51,8 +51,7 @@ uint8_t maxBrightness = 20;                      // Define the max brightness of
 
 int8_t colourSelect = 0;                        // selectes the display colour. 0 = skyrora blue, 1 = offwhite, 2 = yellowOrange. (currently cycles through each)
 
-
-
+bool countingDown = true;                         // while true clock is "counting down" to t=0, if false clock is counting up from t=0
 
 
 void setup() {
@@ -157,12 +156,12 @@ void countdownClock() {                                           // Free Runnin
     seconds++;                                                         // add a second
 
     
-  Serial.printf("H: %i M: %i S: %i", hours, minutes, seconds);
+  Serial.printf("H: %i M: %i S: %i", hours, minutes, seconds);          // serial print for testing
   Serial.println(" ");
   }
 
 
-  if (hours < 0) {                                                     // if we are in (negative) time, we are counting UP to T=0
+  if (countingDown) {                                                     // if we are in (negative) time, we are counting UP to T=0
 
     if (seconds >= 0) {                                                    // If seconds reach 0
       minutes++;                                                              // Increment minuites
@@ -173,9 +172,7 @@ void countdownClock() {                                           // Free Runnin
       hours++;                                                                   // increment hours
       minutes = -60;                                                             // reset minuites
     }
-  }
-
-  if (hours >= 0) {                                                          // If we are counting (positive) time, we are counting UP from T=0, so reset values need to be to 0
+  } else {                                                          // If we are counting (positive) time, we are counting UP from T=0, so reset values need to be to 0
 
     if (seconds >= 60) {                                                    // If seconds reach 0
       minutes++;                                                              // Increment minuites
@@ -188,11 +185,17 @@ void countdownClock() {                                           // Free Runnin
     }
   }
 
-  if (hours >= 24) {
-    hours = -23;
+  if (hours == 0 && minutes == 0 && seconds == 0){                                 // when t=0 is reached, countdown mode is false and clock starts counting up
+    countingDown = false;
+    Serial.println("T = 0!");
+  }
+
+  if (hours >= 24) {                                                               // if +24 hours is reached from t=0 clock resets to -23:59:50 from t=0
+    hours = -23; 
     minutes = -59;
     seconds = -59;
-
+    countingDown = true;
+    Serial.println("Clock Reset");
   }
 
 
@@ -204,12 +207,17 @@ void countdownClock() {                                           // Free Runnin
 void clocktodigits() {  // Function to split each clock value into seperate digits
 
 
-  secondsLSF = seconds % 10;
+  secondsLSF = seconds % 10;                                    // Splits up seconds into most significant and least significant figure
   secondsMSF = seconds / 10;
 
-  if (secondsLSF < 0){
-    secondsLSF = secondsLSF*-1; 
+  if (secondsLSF < 0){                                           // If negative, inverts digit to work with our array
+    secondsLSF = secondsLSF*-1;                                   // character selection.
   }
+    if (secondsMSF < 0){
+    secondsMSF = secondsMSF*-1; 
+  }
+
+                                                                    // Do the same with minutes and Hours:
 
 
 // Serial.printf("MSF: %i  LSF:  %i", secondsMSF, secondsLSF);
