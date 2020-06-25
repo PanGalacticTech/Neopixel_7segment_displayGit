@@ -54,11 +54,32 @@ int8_t colourSelect = 0;                        // selectes the display colour. 
 bool countingDown = true;                         // while true clock is "counting down" to t=0, if false clock is counting up from t=0
 
 
+
+bool demoMode = false;                              // demo mode for animations // Defaults to OFF
+int8_t demoPin = 15;                              // Short this pin to GND on boot up to force demo mode
+int8_t demoPinValue;
+
+
 void setup() {
+
+  pinMode(demoPin, INPUT_PULLUP);
+
+  demoPinValue = digitalRead(demoPin);                   // read the demo pin once to see if shorted
 
   delay(3000); // 3 second delay for recovery
 
   Serial.begin(115200);                                    // Serial for debugging if required
+
+
+  if (demoPinValue == 0) {                                       // after delay check pin is still shorted
+    demoPinValue = digitalRead(demoPin);
+    if (demoPinValue == 0) {                                         // if false i.e (Shorted), set demoMode
+      demoMode = true;
+      Serial.println("Demo Mode Active");
+    }
+  } else {
+    Serial.println("Countdown Clock Initialised");
+  }
 
 
   // tell FastLED about the LED strip configuration
@@ -85,9 +106,9 @@ void setup() {
 int8_t countdown = 0;            // Countdown timer placeholder for testing.
 
 
-int8_t seconds = -60;    // initialised at -60 for testing
-int8_t minutes = -2;
-int8_t hours = -1;           // These just set the starting time on boot up, could be set to -23:59:59 in final implementation
+int8_t seconds = -3;    // initialised at -60 for testing
+int8_t minutes = -1;
+int8_t hours = 0;           // These just set the starting time on boot up, could be set to -23:59:59 in final implementation
 // for now set lower for easier testing transition state
 
 
@@ -112,7 +133,6 @@ void loop() {
 
 
   // clock timing functions to take over when live data not available:
-
   countdownClock();
 
 
@@ -126,18 +146,25 @@ void loop() {
   // This line can be put into a for loop, and the pre seperated timing values passed to displayed digits array, then to the setDigit function
 
 
+  if (!demoMode) {                                                                                                                             // if demo mode is inactive > Write the clock to the display
 
-  setDigit(displayedDigits[0], activeDigit, currentColour.r, currentColour.g, currentColour.b);                                      // Turns LED segments on and off. Brightness is already set in setup loop,.
+    setDigit(displayedDigits[0], activeDigit, currentColour.r, currentColour.g, currentColour.b);                                      // Turns LED segments on and off. Brightness is already set in setup loop,.
 
-  //     Colour for "ON" LEDs passed as seperate RGB values an argument to the function
-  //      currentColour variable is passed as seperate .r .b .g values, so these can be replaced directly with RGB values 0-255
+    //     Colour for "ON" LEDs passed as seperate RGB values an argument to the function
+    //      currentColour variable is passed as seperate .r .b .g values, so these can be replaced directly with RGB values 0-255
+  }
 
+  else {                                                                                                 // else run the demo program
+
+    runDemo();
+
+  }
 
   FastLED.show();                          // print the data to all the LEDs
 
-  
+
   //Serial.println(countdown);             // print for testing only
- // delay(1000);                          // delay for testing purposes only
+  // delay(1000);                          // delay for testing purposes only
 
 
 
@@ -155,43 +182,76 @@ void countdownClock() {                                           // Free Runnin
 
     seconds++;                                                         // add a second
 
-    
-  Serial.printf("H: %i M: %i S: %i", hours, minutes, seconds);          // serial print for testing
-  Serial.println(" ");
+
+    Serial.printf("H: %i M: %i S: %i", hours, minutes, seconds);          // serial print for testing
+    Serial.println(" ");
+
+    if (hours == 0 && minutes == 0) {
+
+      if (seconds >= -20) {
+        Serial.printf("T  %i seconds...", seconds);
+        Serial.println(" ");
+      }
+
+      if (seconds == 0) {
+        Serial.println("T = 0!");                                                      // when t=0 is reached, Print t=0
+        Serial.println(" ");
+        Serial.println(" ");
+      }
+    }
+
+
+    if (hours < 0) {
+
+      if (seconds >= 0) {                                                    // If seconds greater than 0
+        minutes++;                                                              // Increment minuites
+        seconds = -60;
+        cycleColour();                                                               // Cycles colours once a minuite
+        if (minutes >= 0) {
+          hours++;
+          minutes = -60;
+        }
+      }
+    }
+
+    if (hours == 0 && minutes < 0) {
+      if (seconds >= 0) {                                                    // If seconds greater than 0
+        minutes++;                                                              // Increment minuites
+        seconds = -60;
+        cycleColour();                                                               // Cycles colours once a minuite
+      }
+    }
+
+    if (hours == 0 && minutes == 0) {
+      if (seconds >= 10) {
+      //  Serial.printf("T - %i seconds...", seconds);
+      //  Serial.println(" ");
+      }
+      if (seconds >= 60) {                                                   // If seconds greater than 0
+        minutes++;
+        seconds = 0;
+        cycleColour();
+      }
+    }
+
+    if (hours >= 0 && minutes > 0) {
+      if (seconds >= 60) {                                                    // If seconds greater than 0
+        minutes++;
+        seconds = 0;
+        cycleColour();
+        if (minutes >= 60) {
+          hours++;
+          minutes = 0;
+        }
+      }
+    }
   }
 
 
-  if (countingDown) {                                                     // if we are in (negative) time, we are counting UP to T=0
 
-    if (seconds >= 0) {                                                    // If seconds reach 0
-      minutes++;                                                              // Increment minuites
-      seconds = -60;                                                            // reset seconds
-      cycleColour();
-    }
-    if (minutes >= 0) {                                                         // if minuites reach 0
-      hours++;                                                                   // increment hours
-      minutes = -60;                                                             // reset minuites
-    }
-  } else {                                                          // If we are counting (positive) time, we are counting UP from T=0, so reset values need to be to 0
-
-    if (seconds >= 60) {                                                    // If seconds reach 0
-      minutes++;                                                              // Increment minuites
-      seconds = 0;                                                            // reset seconds
-      cycleColour();
-    }
-    if (minutes >= 60) {                                                         // if minuites reach 0
-      hours++;                                                                   // increment hours
-      minutes = 0;                                                             // reset minuites
-    }
-  }
-
-  if (hours == 0 && minutes == 0 && seconds == 0){                                 // when t=0 is reached, countdown mode is false and clock starts counting up
-    countingDown = false;
-    Serial.println("T = 0!");
-  }
 
   if (hours >= 24) {                                                               // if +24 hours is reached from t=0 clock resets to -23:59:50 from t=0
-    hours = -23; 
+    hours = -23;
     minutes = -59;
     seconds = -59;
     countingDown = true;
@@ -210,17 +270,17 @@ void clocktodigits() {  // Function to split each clock value into seperate digi
   secondsLSF = seconds % 10;                                    // Splits up seconds into most significant and least significant figure
   secondsMSF = seconds / 10;
 
-  if (secondsLSF < 0){                                           // If negative, inverts digit to work with our array
-    secondsLSF = secondsLSF*-1;                                   // character selection.
+  if (secondsLSF < 0) {                                          // If negative, inverts digit to work with our array
+    secondsLSF = secondsLSF * -1;                                 // character selection.
   }
-    if (secondsMSF < 0){
-    secondsMSF = secondsMSF*-1; 
+  if (secondsMSF < 0) {
+    secondsMSF = secondsMSF * -1;
   }
 
-                                                                    // Do the same with minutes and Hours:
+  // Do the same with minutes and Hours:
 
 
-// Serial.printf("MSF: %i  LSF:  %i", secondsMSF, secondsLSF);
- //Serial.println(" ");
+  // Serial.printf("MSF: %i  LSF:  %i", secondsMSF, secondsLSF);
+  //Serial.println(" ");
 
 }
