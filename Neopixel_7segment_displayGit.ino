@@ -106,8 +106,8 @@ void setup() {
 int8_t countdown = 0;            // Countdown timer placeholder for testing.
 
 
-int8_t seconds = -3;    // initialised at -60 for testing
-int8_t minutes = -1;
+int8_t seconds = -60;    // initialised at -60 for testing
+int8_t minutes = -5;
 int8_t hours = 0;           // These just set the starting time on boot up, could be set to -23:59:59 in final implementation
 // for now set lower for easier testing transition state
 
