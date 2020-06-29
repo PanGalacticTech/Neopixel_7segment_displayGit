@@ -11,7 +11,7 @@
 
 
 
-
+/*
 
 
 
@@ -89,6 +89,8 @@ void countdownClock() {                                           // Free Runnin
           }
         }
     */
+
+    /*
     if (hours >= 0 && minutes >= 0) {
       if (seconds >= 60) {                                                    // If seconds greater than 0
         minutes++;
@@ -151,3 +153,5 @@ void testCountdown() {   // Simple test countdown timer. Just for testing:
   }
 
 }
+
+*/

@@ -61,8 +61,161 @@ int8_t demoPin = 15;                              // Short this pin to GND on bo
 int8_t demoPinValue;
 
 
+
+
+
+
+// ~~~~~~~~~~~~ Global Timing Variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// These Hold the current displayed time in Seconds Minuites and Hours.
+// Values can be negative or positive.
+
+struct countDownTime {                                          //This is a data structure that contains the time as hours minutes and seconds
+  int8_t h;
+  int8_t m;
+  int8_t s;
+};
+
+countDownTime countdownTime;     // Create an instance of the structure above to hold our master clock value
+
+int32_t countDownMillis;   //an alternative master clock that only counts in milliseconds.
+
+
+// Initial Timing Settings // This acts as a constant for the inital setup in the case of no other external start time input.
+// These variables are not updated on every loop,
+countDownTime initalCountdownTime{0, -2, -32};
+//
+
+
+
+
+
+// These variables hold the values printed to each digit of the display
+int8_t secondsLSF;     //seconds least significant figure
+int8_t secondsMSF;      // seconds most singnificant figure
+
+int8_t minutesLSF;     //minutes least significant figure
+int8_t minutesMSF;      // minites  most singnificant figure
+
+int8_t hoursLSF;     //hours least significant figure
+int8_t hoursMSF;      // hours  most singnificant figure
+
+int8_t sixDigits[6] = {};   // array to hold variables above, allows us to iterate through them in a loop, writing each one to the displayed digit variable in order.
+
+
+int8_t activeDigit = 0;  // this value used to control the digit that is currently being written to
+
+
+
+
+
+
+int32_t millisOffset;     // This variable is subtracked from millis() reading in order to allow the clock to be updated periodically from database reads, then run off its own clock between updates.
+
+
+
+
+
+
+
+// Set up inital millis, this sets up the start poiint for the clock. Called once at the end of setup.       
+
+
+int32_t initalMillis;
+
+void clockSet() {
+
+  initalMillis = timeToMillis(countdownTime);
+
+}
+
+
+
+countDownTime outputTime;   
+
+void millisToTime(int32_t inputMillis) {  // function to convert a total time in millis to  returns countdownTime
+
+
+
+
+
+
+  outputTime.s = inputMillis / 1000;
+
+  outputTime.m =  inputMillis / 60000;
+
+  outputTime.h =  inputMillis  / 3600000;
+
+  // Serial.printf("Total:   eH: %i   |   eM: %i   |   eS: %i   |", elapsedHours, elapsedMinutes, elapsedSeconds);  // This shows the total
+
+  // Serial.println(" ");
+
+  // This section subtracts the elapsed hours from the total minuites, then the total hours and total minuites from total seconds, leaving a "bucket" with each value seperated.
+  // this works as the functions above round down by cutting off any decimal points
+
+  outputTime.m =  outputTime.m  - ( outputTime.h * 60);
+
+  outputTime.s =  outputTime.s  - (( outputTime.m + ( outputTime.h  * 60) ) * 60 );
+
+
+  // return outputTime;           // this function does not return anything because C wont let you return structures for some reason. Instead use outputTime structure which is now declared as a global variable.
+
+}
+
+
+
+
+
+
+
+
+
+// int32_t outputMillis;   // Now made global variable because fuck you thats why
+
+int32_t timeToMillis(countDownTime inputTime) {
+
+
+  int32_t outputMillis = ((inputTime.s * 1000) + (inputTime.m * 60 * 1000) + (inputTime.h * 60 * 60 * 1000));             // Convert our current clock back into milliseconds
+
+
+  return outputMillis;
+
+}
+
+
+
+void internalClock() {  // this function updates the countdownclock by using the functions above to convert the current countdown value to milliseconds. adding millis(). The converting the value back to a real time
+
+  // int32_t millisAddr;
+
+  // millisAddr = timeToMillis(countdownTime);
+
+
+ int32_t millisPassed = millis() + initalMillis;
+
+
+  millisToTime(millisPassed);
+
+
+  countdownTime = outputTime;
+
+}
+
+
+
+
+
+
+
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Setup ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 void setup() {
 
+
+  // Set up and get controller ready
   pinMode(demoPin, INPUT_PULLUP);
 
   demoPinValue = digitalRead(demoPin);                   // read the demo pin once to see if shorted
@@ -71,7 +224,37 @@ void setup() {
 
   Serial.begin(115200);                                    // Serial for debugging if required
 
+  // Pre load starting time
 
+  countdownTime = initalCountdownTime;
+
+  Serial.printf("Countdown MATHS TEST Starts @: %+2i:%2i:%2i", countdownTime.h, countdownTime.m, countdownTime.s);
+  Serial.println(" ");
+  delay(2000);
+
+  int32_t millisAddr;
+
+  millisAddr = timeToMillis(countdownTime);
+
+  // Serial.println(countdownTime);
+
+  Serial.printf("Time to Millis: %+i", millisAddr);
+  Serial.println(" ");
+  delay(2000);
+
+  millisToTime(millisAddr);
+
+  countdownTime = outputTime;  // output time is passed from millisToTime as a global variable
+
+
+  Serial.printf("Countdown MATHS TEST Return: %+2i:%2i:%2i", countdownTime.h, countdownTime.m, countdownTime.s);
+  Serial.println(" ");
+  Serial.println(" ");
+  Serial.println(" Above countdown times should match. If not Your Program is WRONG! ");
+
+  delay(2000);
+
+  // Check demopin for short to GND
 
   if (demoPinValue == 0) {                                       // after delay check pin is still shorted
     demoPinValue = digitalRead(demoPin);
@@ -81,6 +264,9 @@ void setup() {
     }
   } else {
     Serial.println("Countdown Clock Initialised");
+    Serial.printf("Countdown Starts @: %+2i:%2i:%2i", countdownTime.h, countdownTime.m, countdownTime.s);
+    Serial.println(" ");
+    Serial.println(" ");
   }
 
 
@@ -98,8 +284,8 @@ void setup() {
     //  leds[i] = CRGB::Black;
   }
 
-
-  internalClockReset() ;                                       // resets internal clock offset at zero < Last thing before ending setup
+  clockSet();
+  // internalClockReset() ;                                       // resets internal clock offset at zero < Last thing before ending setup
 }
 
 
@@ -107,180 +293,6 @@ void setup() {
 
 
 
-// ~~~~~~~~~~~~ Global Timing Variables ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// These Hold the current displayed time in Seconds Minuites and Hours.
-// Values can be negative or positive.
-
-int8_t seconds = -60;    // initialised at -60 for testing
-int8_t minutes = -5;
-int8_t hours = 0;           // These just set the starting time on boot up, could be set to -23:59:59 in final implementation
-// for now set lower for easier testing transition state
-
-
-// Initial Timing Settings // Due to a change in the maths, we now need a constant variable that holds the countdown clock start time, or the time at which it was last updated.
-// These variables are not updated on every loop, unlike the variables above.
-
-int8_t startSeconds = -34;
-int8_t startMinutes = -1;
-int8_t startHours = 0;
-
-//
-
-
-
-// These variables hold the values printed to each digit of the display
-int8_t secondsLSF;     //seconds least significant figure
-int8_t secondsMSF;      // seconds most singnificant figure
-
-int8_t minutesLSF;     //minutes least significant figure
-int8_t minutesMSF;      // minites  most singnificant figure
-
-int8_t hoursLSF;     //hours least significant figure
-int8_t hoursMSF;      // hours  most singnificant figure
-
-int8_t activeDigit = 0;  // this value used to control the digit that is currently being written to
-
-
-// These Variables are used for controlling the onboard (Real Time Clock (RTC) Function
-
-
-uint32_t  currentTimeMillis;     // This variable will hold the start time + the elapsed time to = the real time in milliseconds
-
-uint32_t  currentTimeSeconds;    // divides above value by 1000
-
-uint32_t  elapsedMillis;     // Elapsed time since boot up  (millis()), but as a variable that can be reset
-
-uint32_t  elapsedSeconds;
-
-uint32_t  elapsedMinutes;
-
-uint32_t  elapsedHours;
-
-uint32_t millisOffset;     // This variable is subtracked from millis() reading in order to allow the clock to be updated periodically from database reads, then run off its own clock between updates.
-
-bool clockReboot = true;   // triggers a total clock reset at seconds = 0; triggered once after startup
-
-
-void internalClockReset() {  // call this function whenever the time is updated from a database read.  // May cause problems if millis() runs over and resets to zero, however this should only happen once every 49 days;
-  // As the clock is not designed to run for that long this should work/ A function could be written to manually reset both millis() and millisOffset() at the same time to ensure robust function
-
-
-
-  millisOffset = millis();
-
-  elapsedTime();
-
-  startSeconds = elapsedSeconds;
-  startMinutes = elapsedMinutes;
-  startHours  = elapsedHours;
-
-
-
-
-
-  // Function here to update
-  // startSeconds
-  // startMinutes
-  //startMHours
-  // With values read from external server/database
-
-}
-
-
-
-
-
-void elapsedTime() {                                                    /// this only works if seconds always starts at -60 This will not do.
-
-  // this section calculates the total elapsed time from millis()
-
-
-  elapsedMillis = millis() - millisOffset;
-
-  elapsedSeconds = elapsedMillis / 1000;                  //   100,000,000 > 100,000 Seconds
-
-  elapsedMinutes = elapsedSeconds / 60;                      //// 100,000 > 1666 minuite
-
-  elapsedHours = elapsedMinutes / 60;                         // 27 hours    >>> 27*60 = 1620    ||   1666 - 1620 =  46 mins
-
-  // Serial.printf("Total:   eH: %i   |   eM: %i   |   eS: %i   |", elapsedHours, elapsedMinutes, elapsedSeconds);  // This shows the total
-
-  // Serial.println(" ");
-
-  // This section subtracts the elapsed hours from the total minuites, then the total hours and total minuites from total seconds, leaving a "bucket" with each value seperated.
-  // this works as the functions above round down by cutting off any decimal points
-
-  elapsedMinutes = elapsedMinutes - (elapsedHours * 60);
-
-  elapsedSeconds = elapsedSeconds - ((elapsedMinutes * 60) + (elapsedHours * 60));
-
-
-  //  Serial.printf("Recalc:  eH: %i   |   eM: %i   |   eS: %i   |", elapsedHours, elapsedMinutes, elapsedSeconds);  // This shows the total
-
-  // Serial.println(" ");
-
-
-}
-
-
-
-
-bool tZeroTrigger = false;   // required to bug fix around t=0 transition
-
-
-void internalClock() {                             //  more accurate than our previous clock function, this time using internal clock and a library to get the individual times.
-  // Could be done by calling millis() then working out elapsed hours, mins & seconds manually, but the library will save some work. < Library was out of date and did not function
-  // So I have re-written the elapsedTime function to do the job of the library.
-
-
-  elapsedTime();     // Function to get elapsed times from internal clock
-
-
-  seconds = startSeconds + elapsedSeconds;
-
-  minutes = startMinutes + elapsedMinutes;
-
-  hours = startHours + elapsedHours;
-
-
-  // Bug fix, Not a fan of this but it should work: // Problem with transition through T=0 Reset clock to starting values 0:0:0
-
-  if (!tZeroTrigger) {
-    if (hours == 0 && minutes == 0 && seconds >= -1) {
-
-      tZeroTrigger = true;
-      Serial.println("T = 0");
-      Serial.println(" ");
-      Serial.println(" ");
-      startSeconds = 0;
-      startMinutes = 0;
-      startHours = 0;
-
-      internalClockReset();
-    }
-  }
-
-  if (seconds == 0) {                   // another bug fix to allow for odd
-    internalClockReset();
-  }
-
-  if (hours >= 100) {   // if hours roll over to t+ 100 hours, reset clock to -24 hours
-
-    startSeconds = -60;
-    startMinutes = -60;
-    startHours = -23;
-    internalClockReset();
-    tZeroTrigger = false;   //reset this trigger
-
-
-  }
-
-  // Serial.printf("  %i : %i : %i ", hours, minutes, seconds);
-  // Serial.println(" ");
-
-
-}
 
 
 
@@ -300,18 +312,9 @@ void loop() {
 
 
 
-  if (clockReboot) {
-    if (seconds == 0) {
-      internalClockReset();
-
-      clockReboot = false;
-    }
-  }
-
-
   // clock timing functions to take over when live data not available:
 
-  // countdownClock();                                                                  // Pick one function or the other
+  //   countdownClock();                                                                  // Pick one function or the other
 
   internalClock();                                                                         // Pick one function or the other
 
@@ -319,6 +322,10 @@ void loop() {
 
   // Function here to split up clock into individual digits to feed to display algorithms
   clocktodigits();
+
+
+
+
 
 
 
@@ -345,19 +352,19 @@ void loop() {
   if ( (millis() - lastDisplayUpdate) >= updateDisplayDelay) {             // if the current time - the last time the LED display was updated.
 
 
-    Serial.printf("Elapsed Millis: %l ",  elapsedMillis);
+    // Serial.printf("Elapsed Millis: %l ",  elapsedMillis);
 
-    Serial.printf("  %i : %i : %i ", hours, minutes, seconds);
+    Serial.printf("  %i : %i : %i ", countdownTime.h , countdownTime.m, countdownTime.s);
     Serial.println(" ");
 
 
     // Some If Statements for controlling events around T=0 mark
 
-    if (hours == 0 && minutes == 0) {
+    if (countdownTime.h == 0 && countdownTime.m == 0) {
 
-      if (seconds >= -20 && seconds <= 20) {
+      if (countdownTime.s >= -20 && countdownTime.s <= 20) {
 
-        Serial.printf("| T %+i  seconds |", seconds);  //    %+i means integer variable is passed to character string. + forces sign (+-)
+        Serial.printf("| T %+i  seconds |", countdownTime.s);  //    %+i means integer variable is passed to character string. + forces sign (+-)
         Serial.println(" ");
 
       }
@@ -374,7 +381,7 @@ void loop() {
   FastLED.show();    // trying this on every loop to see if it works more smoothly
 
 
-  if (seconds == 60 || seconds == -60) {                     // if seconds reach 0 (every minuite) change colour. Just for fun while testing.
+  if (countdownTime.s == 60 || countdownTime.s == -60 || countdownTime.s == 0) {                     // if seconds reach 0 (every minuite) change colour. Just for fun while testing.
 
     cycleColour();                                                               // Cycles colours once a minuite
 
@@ -391,8 +398,8 @@ void loop() {
 void clocktodigits() {  // Function to split each clock value into seperate digits bfore printing to display
 
 
-  secondsLSF = seconds % 10;                                    // Splits up seconds into most significant and least significant figure
-  secondsMSF = seconds / 10;
+  secondsLSF = countdownTime.s % 10;                                    // Splits up seconds into most significant and least significant figure
+  secondsMSF = countdownTime.s / 10;
 
   if (secondsLSF < 0) {                                          // If negative, inverts digit to work with our array
     secondsLSF = secondsLSF * -1;                                 // character selection.
@@ -402,8 +409,8 @@ void clocktodigits() {  // Function to split each clock value into seperate digi
   }
 
 
-  minutesLSF = minutes % 10;                                    // Splits up minuites into most significant and least significant figure
-  minutesMSF =  minutes / 10;
+  minutesLSF = countdownTime.m % 10;                                    // Splits up minuites into most significant and least significant figure
+  minutesMSF =  countdownTime.m / 10;
 
   if (minutesLSF < 0) {                                          // If negative, inverts digit to work with our array
     minutesLSF =  minutesLSF * -1;                                 // character selection.
@@ -413,8 +420,8 @@ void clocktodigits() {  // Function to split each clock value into seperate digi
   }
 
 
-  hoursLSF = hours % 10;                                    // Splits up Hours into most significant and least significant figure
-  hoursMSF =  hours / 10;
+  hoursLSF = countdownTime.h % 10;                                    // Splits up Hours into most significant and least significant figure
+  hoursMSF =  countdownTime.h / 10;
 
   if (hoursLSF < 0) {                                          // If negative, inverts digit to work with our array
     hoursLSF =  hoursLSF * -1;                                 // character selection.
