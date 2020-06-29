@@ -230,7 +230,7 @@ void setup() {
 
   Serial.printf("Countdown MATHS TEST Starts @: %+2i:%2i:%2i", countdownTime.h, countdownTime.m, countdownTime.s);
   Serial.println(" ");
-  delay(2000);
+//  delay(2000);
 
   int32_t millisAddr;
 
@@ -240,7 +240,7 @@ void setup() {
 
   Serial.printf("Time to Millis: %+i", millisAddr);
   Serial.println(" ");
-  delay(2000);
+//  delay(2000);
 
   millisToTime(millisAddr);
 
@@ -252,7 +252,7 @@ void setup() {
   Serial.println(" ");
   Serial.println(" Above countdown times should match. If not Your Program is WRONG! ");
 
-  delay(2000);
+ // delay(2000);
 
   // Check demopin for short to GND
 
